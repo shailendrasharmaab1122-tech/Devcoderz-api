@@ -1,52 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevCoderZ Player</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.4/shaka-player.compiled.js"></script>
-    <style>
-        body { margin: 0; background: #000; overflow: hidden; }
-        video { width: 100vw; height: 100vh; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>DevCoderz Ultra Smooth Player</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;touch-action:none}
+.player{position:fixed;inset:0;background:#000;pointer-events:auto}
+video{width:100%;height:100%;object-fit:contain}
+.top-brand{position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:40;text-align:center;pointer-events:none}
+.jsr{color:#ff9800;font-weight:700;font-size:14px}
+.dev{margin-top:4px;font-size:12px;font-weight:600;color:#00e5ff;text-shadow:0 0 6px #00e5ff}
+.center-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:999;cursor:pointer}
+.center-play.hide{display:none}
+.center-play span{width:90px;height:90px;background:rgba(255,255,255,.25);backdrop-filter:blur(5px);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;color:#fff}
+.controls{position:absolute;bottom:0;width:100%;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.9));transition:.1s;z-index:35}
+.controls.hide{opacity:0;pointer-events:none}
+.progress{height:7px;background:#555;border-radius:10px;position:relative;margin-bottom:10px;cursor:pointer;touch-action:none}
+.progress-fill{height:100%;width:0;background:#2196f3;border-radius:10px}
+.thumb{position:absolute;top:50%;width:18px;height:18px;background:#fff;border-radius:50%;transform:translate(-50%,-50%);left:0;pointer-events:none}
+.time{color:#fff;font-size:11px;margin-bottom:4px;text-align:right}
+.row{display:flex;align-items:center;gap:6px;justify-content:space-between;color:#fff}
+.btn{width:40px;height:40px;border:1.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px}
+.settings{position:absolute;bottom:70px;right:10px;background:#111;border-radius:12px;padding:12px;width:150px;display:none;z-index:50}
+.settings label{color:#aaa;font-size:10px;display:block;margin-bottom:4px}
+.settings select{width:100%;background:#000;color:#fff;border:1px solid #555;border-radius:4px;height:24px;margin-bottom:10px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:1000}
+.box{width:320px;padding:26px;border-radius:22px;text-align:center;background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff}
+.tg-btn{display:block;margin-top:14px;padding:14px;border-radius:28px;font-weight:700;width:100%;cursor:pointer;text-align:center;text-decoration:none;color:#fff;background:#fff;color:#1e3c72}
+.continue{background:rgba(0,0,0,.25);border:1px solid #fff;color:#fff;margin-top:10px}
+</style>
 </head>
 <body>
+<div class="overlay" id="tgPopup">
+ <div class="box">
+  <h2>Join our Telegram</h2>
+  <a class="tg-btn" href="https://t.me/+JXdxtVzQf-NhM2Jl" target="_blank">Join Telegram</a>
+  <div class="tg-btn continue" id="continueBtn">Continue to Video</div>
+ </div>
+</div>
+<div class="player" id="player">
+ <video id="video" playsinline></video>
+ <div class="top-brand"><div class="jsr">🚩 Jai Shree Ram 🚩</div><div class="dev">Developed by - Devansh Sharma</div></div>
+ <div class="center-play" id="centerPlay"><span>▶</span></div>
+ <div class="controls hide" id="controls">
+  <div class="progress" id="progress"><div class="progress-fill" id="bar"></div><div class="thumb" id="thumb"></div></div>
+  <div class="time" id="time">00:00:00 / 00:00:00</div>
+  <div class="row">
+   <div class="btn" id="back">⟲10</div><div class="btn" id="play">▶</div><div class="btn" id="fwd">10⟳</div>
+   <div class="btn" id="settingsBtn">⚙️</div><div class="btn" id="fs">⛶</div>
+  </div>
+ </div>
+ <div class="settings" id="settings">
+  <label>Speed</label>
+  <select id="speed"><option value="1">1x</option><option value="1.5">1.5x</option><option value="2">2x</option><option value="2.5">2.5x</option><option value="3">3x</option></select>
+  <label>Quality</label><select id="quality"><option value="-1">Auto</option></select>
+ </div>
+</div>
+<script>
+let video=document.getElementById("video"),playerDiv=document.getElementById("player"),shakaPlayer,hideTimer,isDragging=false;
 
-    <video id="video" controls playsinline></video>
+function hexToBase64Url(hex){
+ let clean = hex.replace(/-/g, '');
+ let bytes = new Uint8Array(clean.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+ return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
 
-    <script>
-        const params = new URLSearchParams(window.location.search);
-        const bId = params.get("batchId");
-        const lId = params.get("lectureId");
-        const sId = params.get("subjectId");
+async function init(){
+ const p=new URLSearchParams(location.search);
+ const res=await fetch(`https://devcoderz-player.vercel.app/api/stream.js?batchId=${p.get('batchId')}&lectureId=${p.get('lectureId')}&subjectId=${p.get('subjectId')}`);
+ const d=await res.json();
+ 
+ shakaPlayer=new shaka.Player(video);
+ if(d.drmKeys?.clearKeys){
+  let kid = Object.keys(d.drmKeys.clearKeys)[0];
+  let key = d.drmKeys.clearKeys[kid];
+  shakaPlayer.configure({drm:{clearKeys:{[hexToBase64Url(kid)]:hexToBase64Url(key)}}});
+ }
+ 
+ await shakaPlayer.load(d.url);
+ shakaPlayer.getVariantTracks().filter(t=>t.height).forEach(t=>{
+  let o=document.createElement("option");o.value=t.id;o.text=t.height+"p";document.getElementById("quality").appendChild(o);
+ });
+}
 
-        async function initPlayer() {
-            const video = document.getElementById('video');
-            const player = new shaka.Player(video);
+function show(){document.getElementById("controls").classList.remove("hide");clearTimeout(hideTimer);hideTimer=setTimeout(()=>document.getElementById("controls").classList.add("hide"),3000);}
+document.getElementById("continueBtn").onclick=e=>{document.getElementById("tgPopup").style.display="none";init();};
+video.ontimeupdate=()=>{if(!isDragging){
+ let p=(video.currentTime/video.duration)*100||0;
+ document.getElementById("bar").style.width=document.getElementById("thumb").style.left=p+"%";
+ document.getElementById("time").textContent=formatTime(video.currentTime)+" / "+formatTime(video.duration);
+}};
 
-            try {
-                const res = await fetch(`https://devcoderz-player.vercel.app/api/stream.js?batchId=${bId}&lectureId=${lId}&subjectId=${sId}`);
-                const data = await res.json();
+function formatTime(s){
+ let h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60);
+ return [h,m,sec].map(v=>(v<10?"0"+v:v)).join(":");
+}
 
-                if (!data.url) throw new Error("Stream URL not found");
+const seek = (e) => {
+ let rect = document.getElementById("progress").getBoundingClientRect();
+ let pos = Math.max(0, Math.min(1, ((e.clientX||e.touches[0].clientX) - rect.left) / rect.width));
+ video.currentTime = pos * video.duration;
+};
 
-                if (data.drmKeys && data.drmKeys.clearKeys) {
-                    player.configure({
-                        drm: {
-                            clearKeys: data.drmKeys.clearKeys
-                        }
-                    });
-                }
-
-                await player.load(data.url);
-                video.play().catch(e => console.log("Autoplay blocked, user needs to click play"));
-            } catch (e) {
-                console.error("Error:", e);
-                document.body.innerHTML = `<div style="color:white; padding:20px;">Error: ${e.message}</div>`;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', initPlayer);
-    </script>
+document.getElementById("progress").addEventListener("pointerdown", e => {isDragging=true; seek(e);});
+window.addEventListener("pointermove", e => {if(isDragging) seek(e);});
+window.addEventListener("pointerup", () => {isDragging=false;});
+document.getElementById("play").onclick=()=>video.paused?video.play():video.pause();
+document.getElementById("back").onclick=()=>video.currentTime-=10;
+document.getElementById("fwd").onclick=()=>video.currentTime+=10;
+document.getElementById("settingsBtn").onclick=e=>{e.stopPropagation();document.getElementById("settings").style.display=document.getElementById("settings").style.display==="block"?"none":"block";};
+document.getElementById("speed").onchange=e=>video.playbackRate=e.target.value;
+document.getElementById("quality").onchange=e=>shakaPlayer.selectVariantTrack(shakaPlayer.getVariantTracks().find(t=>t.id==e.target.value),true);
+document.getElementById("fs").onclick=()=>!document.fullscreenElement?playerDiv.requestFullscreen():document.exitFullscreen();
+document.getElementById("centerPlay").onpointerdown=e=>{e.stopPropagation();video.play();document.getElementById("centerPlay").classList.add("hide");show();};
+playerDiv.onclick=e=>{if(e.target==video||e.target.id=="player"){show();document.getElementById("settings").style.display="none";}};
+video.onplay=()=>document.getElementById("play").textContent="❚❚";
+video.onpause=()=>document.getElementById("play").textContent="▶";
+</script>
 </body>
 </html>
