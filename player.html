@@ -1,84 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum Secure Player · DevCoderZ</title>
-    <script src="https://cdn.jsdelivr.net/npm/shaka-player@5.0.10/dist/shaka-player.compiled.js"></script>
-    <style>
-        body { margin:0; background:#0a0604; color:#fff; font-family:'Segoe UI', sans-serif; overflow:hidden; }
-        .player-shell { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; position: relative; }
-        #video-engine { width: 100%; height: 100%; background: #000; }
-        /* Professional UI Overlay */
-        .ui-layer { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px); display: flex; gap: 15px; align-items: center; border: 1px solid rgba(255,255,255,0.1); }
-        .status-chip { font-size: 10px; color: #00e5ff; text-transform: uppercase; letter-spacing: 2px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum Secure Player</title>
+<script src="https://cdn.jsdelivr.net/npm/shaka-player@5.0.10/dist/shaka-player.compiled.js"></script>
+<style>
+body { margin:0; background:#0a0604; color:#fff; font-family:sans-serif; overflow:hidden; }
+.player-shell { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; position: relative; }
+#video-engine { width: 100%; height: 100%; background: #000; }
+.ui-layer { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px); display: flex; gap: 15px; align-items: center; border: 1px solid rgba(255,255,255,0.1); }
+.status-chip { font-size: 10px; color: #00e5ff; text-transform: uppercase; letter-spacing: 2px; }
+</style>
 </head>
 <body>
 
 <div class="player-shell">
     <video id="video-engine" controls playsinline></video>
     <div class="ui-layer">
-        <div class="status-chip" id="conn-status">Initializing Quantum Engine...</div>
+        <div class="status-chip" id="conn-status">Initializing Engine...</div>
     </div>
 </div>
 
 <script>
-/**
- * QUANTUM-ENCRYPTED PLAYER ENGINE
- * Built for High-Performance Streaming Orchestration
- */
+const CONFIG = { API_ENDPOINT: "https://devcoderz-player.vercel.app/api/stream.js" };
 
-const CONFIG = {
-    API_ENDPOINT: "https://devcoderz-player.vercel.app/api/stream.js"
-};
-
-// 1. DRM Bridge & WASM Helper
-function hexToBase64(hex) {
-    let bytes = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+function hexToBase64Url(hex) {
+    const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    let base64 = btoa(String.fromCharCode(...bytes));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
-// 2. Stream Orchestrator
 async function initializeOrchestrator() {
     const status = document.getElementById('conn-status');
     const p = new URLSearchParams(window.location.search);
     
     try {
-        status.textContent = "Routing Traffic...";
         const response = await fetch(`${CONFIG.API_ENDPOINT}?batchId=${p.get('batchId')}&lectureId=${p.get('lectureId')}&subjectId=${p.get('subjectId')}`);
         const streamData = await response.json();
 
         if (!streamData.success) throw new Error("Orchestration Failed");
 
-        status.textContent = "Authenticating Session...";
         const video = document.getElementById('video-engine');
         const player = new shaka.Player(video);
 
-        // Custom DRM Bridge
         if (streamData.drmKeys?.clearKeys) {
             const keys = streamData.drmKeys.clearKeys;
             const kid = Object.keys(keys)[0];
             const key = keys[kid];
-            player.configure({ drm: { clearKeys: { [hexToBase64(kid)]: hexToBase64(key) } } });
+            player.configure({ drm: { clearKeys: { [hexToBase64Url(kid)]: hexToBase64Url(key) } } });
         }
 
-        // Network Request Filter (CDN Optimization)
-        player.getNetworkingEngine().registerRequestFilter((type, req) => {
-            req.allowCrossSiteCredentials = true;
+        player.getNetworkingEngine().registerRequestFilter((type, request) => {
+            const url = new URL(request.uris[0]);
+            const masterUrl = new URL(streamData.url);
+            masterUrl.searchParams.forEach((value, key) => {
+                url.searchParams.set(key, value);
+            });
+            request.uris[0] = url.toString();
         });
 
         await player.load(streamData.url);
-        status.textContent = "Secure Stream Active: Live";
+        status.textContent = "Secure Stream Active";
         
     } catch (err) {
-        console.error("Critical Orchestration Error:", err);
-        status.textContent = "Engine Failure: Check Auth Session";
+        status.textContent = "Engine Failure: " + err.message;
         status.style.color = "#ff4444";
     }
 }
 
-// Start Engine
 document.addEventListener('DOMContentLoaded', initializeOrchestrator);
 </script>
 </body>
