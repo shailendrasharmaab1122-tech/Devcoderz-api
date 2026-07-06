@@ -26,21 +26,25 @@
         fetch(`https://devcoderz-player.vercel.app/api/stream.js?batchId=${bId}&lectureId=${lId}&subjectId=${sId}`)
             .then(res => res.json())
             .then(data => {
-                const match = data.url.match(/mediacdn\.pw\.live\/([a-f0-9-]+)\//);
-                const streamUrl = `https://stream.pimaxer.in/${match[1]}/master.m3u8`;
-                
+                if (!data.url) throw new Error("No URL found");
+
                 const player = videojs('my-video');
                 player.eme();
-                player.src({ src: streamUrl, type: 'application/x-mpegURL' });
+                player.src({ src: data.url, type: 'application/dash+xml' });
                 
                 player.ready(() => {
-                    if (data.drmKeys?.clearKeys) {
-                        player.eme({ keySystems: { 'org.w3.clearkey': data.drmKeys.clearKeys } });
+                    if (data.drmKeys && data.drmKeys.clearKeys) {
+                        player.eme({ 
+                            keySystems: { 'org.w3.clearkey': data.drmKeys.clearKeys } 
+                        });
                     }
                     player.play();
                 });
             })
-            .catch(err => alert("Error loading player"));
+            .catch(err => {
+                console.error(err);
+                alert("Error loading stream: " + err.message);
+            });
     </script>
 </body>
 </html>
