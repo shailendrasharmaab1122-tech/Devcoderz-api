@@ -9,6 +9,12 @@
 body { margin:0; background:#0a0604; color:#fff; font-family:sans-serif; overflow:hidden; }
 .player-shell { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; position: relative; }
 #video-engine { width: 100%; height: 100%; background: #000; }
+
+/* Play Button Overlay */
+.play-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); z-index: 100; cursor: pointer; transition: 0.3s; }
+.play-btn { width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; backdrop-filter: blur(5px); border: 2px solid #fff; }
+.play-overlay.hidden { opacity: 0; pointer-events: none; }
+
 .ui-layer { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px); display: flex; gap: 15px; align-items: center; border: 1px solid rgba(255,255,255,0.1); }
 .status-chip { font-size: 10px; color: #00e5ff; text-transform: uppercase; letter-spacing: 2px; }
 </style>
@@ -16,7 +22,12 @@ body { margin:0; background:#0a0604; color:#fff; font-family:sans-serif; overflo
 <body>
 
 <div class="player-shell">
-    <video id="video-engine" controls playsinline></video>
+    <div class="play-overlay" id="playOverlay">
+        <div class="play-btn">▶</div>
+    </div>
+    
+    <video id="video-engine" playsinline></video>
+    
     <div class="ui-layer">
         <div class="status-chip" id="conn-status">Initializing Engine...</div>
     </div>
@@ -24,6 +35,7 @@ body { margin:0; background:#0a0604; color:#fff; font-family:sans-serif; overflo
 
 <script>
 const CONFIG = { API_ENDPOINT: "https://devcoderz-player.vercel.app/api/stream.js" };
+let shakaPlayer = null;
 
 function hexToBase64Url(hex) {
     const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
@@ -34,34 +46,41 @@ function hexToBase64Url(hex) {
 async function initializeOrchestrator() {
     const status = document.getElementById('conn-status');
     const p = new URLSearchParams(window.location.search);
+    const video = document.getElementById('video-engine');
+    const overlay = document.getElementById('playOverlay');
     
     try {
+        status.textContent = "Fetching Data...";
         const response = await fetch(`${CONFIG.API_ENDPOINT}?batchId=${p.get('batchId')}&lectureId=${p.get('lectureId')}&subjectId=${p.get('subjectId')}`);
         const streamData = await response.json();
 
         if (!streamData.success) throw new Error("Orchestration Failed");
 
-        const video = document.getElementById('video-engine');
-        const player = new shaka.Player(video);
+        shakaPlayer = new shaka.Player(video);
 
         if (streamData.drmKeys?.clearKeys) {
             const keys = streamData.drmKeys.clearKeys;
             const kid = Object.keys(keys)[0];
             const key = keys[kid];
-            player.configure({ drm: { clearKeys: { [hexToBase64Url(kid)]: hexToBase64Url(key) } } });
+            shakaPlayer.configure({ drm: { clearKeys: { [hexToBase64Url(kid)]: hexToBase64Url(key) } } });
         }
 
-        player.getNetworkingEngine().registerRequestFilter((type, request) => {
+        shakaPlayer.getNetworkingEngine().registerRequestFilter((type, request) => {
             const url = new URL(request.uris[0]);
             const masterUrl = new URL(streamData.url);
-            masterUrl.searchParams.forEach((value, key) => {
-                url.searchParams.set(key, value);
-            });
+            masterUrl.searchParams.forEach((value, key) => { url.searchParams.set(key, value); });
             request.uris[0] = url.toString();
         });
 
-        await player.load(streamData.url);
-        status.textContent = "Secure Stream Active";
+        await shakaPlayer.load(streamData.url);
+        status.textContent = "Ready to Play";
+
+        // Play button click logic
+        overlay.onclick = () => {
+            video.play();
+            overlay.classList.add('hidden');
+            status.textContent = "Secure Stream Active";
+        };
         
     } catch (err) {
         status.textContent = "Engine Failure: " + err.message;
@@ -72,4 +91,4 @@ async function initializeOrchestrator() {
 document.addEventListener('DOMContentLoaded', initializeOrchestrator);
 </script>
 </body>
-</html> 
+</html>
