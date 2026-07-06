@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shaka Player</title>
+    <title>DevCoderZ Player</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.4/shaka-player.compiled.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; }
@@ -12,7 +12,7 @@
 </head>
 <body>
 
-    <video id="video" controls autoplay></video>
+    <video id="video" controls playsinline></video>
 
     <script>
         const params = new URLSearchParams(window.location.search);
@@ -28,6 +28,8 @@
                 const res = await fetch(`https://devcoderz-player.vercel.app/api/stream.js?batchId=${bId}&lectureId=${lId}&subjectId=${sId}`);
                 const data = await res.json();
 
+                if (!data.url) throw new Error("Stream URL not found");
+
                 if (data.drmKeys && data.drmKeys.clearKeys) {
                     player.configure({
                         drm: {
@@ -37,9 +39,10 @@
                 }
 
                 await player.load(data.url);
+                video.play().catch(e => console.log("Autoplay blocked, user needs to click play"));
             } catch (e) {
                 console.error("Error:", e);
-                alert("Playback Failed");
+                document.body.innerHTML = `<div style="color:white; padding:20px;">Error: ${e.message}</div>`;
             }
         }
 
