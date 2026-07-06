@@ -29,21 +29,28 @@
                 if (!data.url) throw new Error("No URL found");
 
                 const player = videojs('my-video');
-                player.eme();
-                player.src({ src: data.url, type: 'application/dash+xml' });
                 
-                player.ready(() => {
-                    if (data.drmKeys && data.drmKeys.clearKeys) {
-                        player.eme({ 
-                            keySystems: { 'org.w3.clearkey': data.drmKeys.clearKeys } 
-                        });
+                player.ready(function() {
+                    if (typeof player.eme === 'function') {
+                        player.eme();
+                        player.src({ src: data.url, type: 'application/dash+xml' });
+                        
+                        if (data.drmKeys && data.drmKeys.clearKeys) {
+                            player.eme({ 
+                                keySystems: { 'org.w3.clearkey': data.drmKeys.clearKeys } 
+                            });
+                        }
+                        player.play();
+                    } else {
+                        console.error("EME plugin not loaded");
+                        player.src({ src: data.url, type: 'application/dash+xml' });
+                        player.play();
                     }
-                    player.play();
                 });
             })
             .catch(err => {
                 console.error(err);
-                alert("Error loading stream: " + err.message);
+                alert("Error: " + err.message);
             });
     </script>
 </body>
