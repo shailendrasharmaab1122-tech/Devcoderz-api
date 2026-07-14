@@ -1,88 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quantum Secure Player</title>
-<script src="https://cdn.jsdelivr.net/npm/shaka-player@5.0.10/dist/shaka-player.compiled.js"></script>
-<style>
-body { margin:0; background:#0a0604; color:#fff; font-family:sans-serif; overflow:hidden; }
-.player-shell { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; position: relative; }
-#video-engine { width: 100%; height: 100%; background: #000; }
-.play-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); z-index: 100; cursor: pointer; transition: 0.3s; }
-.play-btn { width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; backdrop-filter: blur(5px); border: 2px solid #fff; }
-.play-overlay.hidden { opacity: 0; pointer-events: none; }
-.ui-layer { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px); display: flex; gap: 15px; align-items: center; border: 1px solid rgba(255,255,255,0.1); }
-.status-chip { font-size: 10px; color: #00e5ff; text-transform: uppercase; letter-spacing: 2px; }
-</style>
+    <meta charset="UTF-8">
+    <title>Dynamic Rangex Player</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.0/shaka-player.compiled.js"></script>
+    <style>
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        video { width: 100%; max-width: 900px; }
+    </style>
 </head>
 <body>
+    <video id="video" controls autoplay></video>
+    <script>
+        const video = document.getElementById('video');
+        const player = new shaka.Player(video);
+        
+        // URL se parameters extract karo
+        const urlParams = new URLSearchParams(window.location.search);
+        const bId = urlParams.get('batchId');
+        const sId = urlParams.get('subjectId');
+        const cId = urlParams.get('childId');
+        const vId = urlParams.get('videoId');
 
-<div class="player-shell">
-    <div class="play-overlay" id="playOverlay">
-        <div class="play-btn">▶</div>
-    </div>
-    <video id="video-engine" playsinline></video>
-    <div class="ui-layer">
-        <div class="status-chip" id="conn-status">Initializing Engine...</div>
-    </div>
-</div>
+        async function init() {
+            try {
+                // Dynamic API Call
+                const url = `https://rangexcoder-backend.onrender.com/api/get-video-url?batchId=${bId}&subjectId=${sId}&childId=${cId}&videoId=${vId}&accessToken=&refreshToken=`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                const masterUrl = "https://rangexcoder-backend.onrender.com" + data.data.url + data.data.signedUrl;
 
-<script>
-const CONFIG = { API_ENDPOINT: "https://devcoderz-player.vercel.app/api/stream.js" };
-let shakaPlayer = null;
+                // Manifest se KID nikalo
+                const mpdResponse = await fetch(masterUrl);
+                const mpdText = await mpdResponse.text();
+                const kidMatch = mpdText.match(/default_KID="([^"]+)"/i);
+                const kid = kidMatch ? kidMatch[1].replace(/-/g, "").toLowerCase() : null;
 
-async function initializeOrchestrator() {
-    const status = document.getElementById('conn-status');
-    const p = new URLSearchParams(window.location.search);
-    const video = document.getElementById('video-engine');
-    const overlay = document.getElementById('playOverlay');
-    
-    try {
-        status.textContent = "Fetching Data...";
-        const response = await fetch(`${CONFIG.API_ENDPOINT}?batchId=${p.get('batchId')}&lectureId=${p.get('lectureId')}&subjectId=${p.get('subjectId')}`);
-        const streamData = await response.json();
+                // Key fetch karo
+                const keyResponse = await fetch(`https://rangexcoder-backend.onrender.com/api/get-otp?kid=${kid}&accessToken=&refreshToken=`);
+                const keyData = await keyResponse.json();
+                const key = keyData.clearKeys[kid];
 
-        if (!streamData.success) throw new Error("Orchestration Failed");
+                player.configure({
+                    drm: { clearKeys: { [kid]: key } }
+                });
 
-        shakaPlayer = new shaka.Player(video);
+                // Chunks ke liye parameters attach karo
+                player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                    if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT) {
+                        request.uri += data.data.signedUrl;
+                    }
+                });
 
-        if (streamData.drmKeys?.clearKeys) {
-            const keys = streamData.drmKeys.clearKeys;
-            const kid = Object.keys(keys)[0];
-            const key = keys[kid];
-            shakaPlayer.configure({
-                drm: {
-                    clearKeys: { [kid]: key }
-                }
-            });
+                await player.load(masterUrl);
+            } catch (e) {
+                console.error("Player Load Error:", e);
+                alert("Video load karne mein error aaya!");
+            }
         }
 
-        shakaPlayer.getNetworkingEngine().registerRequestFilter((type, request) => {
-            const url = new URL(request.uris[0]);
-            const masterUrl = new URL(streamData.url);
-            masterUrl.searchParams.forEach((value, key) => {
-                url.searchParams.set(key, value);
-            });
-            request.uris[0] = url.toString();
-        });
-
-        await shakaPlayer.load(streamData.url);
-        status.textContent = "Ready to Play";
-
-        overlay.onclick = () => {
-            video.play();
-            overlay.classList.add('hidden');
-            status.textContent = "Secure Stream Active";
-        };
-        
-    } catch (err) {
-        status.textContent = "Engine Failure: " + err.message;
-        status.style.color = "#ff4444";
-    }
-}
-
-document.addEventListener('DOMContentLoaded', initializeOrchestrator);
-</script>
+        if (vId) {
+            init();
+        } else {
+            alert("Missing Video ID in URL!");
+        }
+    </script>
 </body>
 </html>
