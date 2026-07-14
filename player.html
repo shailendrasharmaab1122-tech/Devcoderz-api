@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fixed Player</title>
+    <title>Player</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.0/shaka-player.compiled.js"></script>
     <style>
         body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
@@ -24,7 +24,7 @@
                 const data = await response.json();
                 
                 const masterUrl = "https://rangexcoder-backend.onrender.com" + data.data.url + data.data.signedUrl;
-                const signedParams = data.data.signedUrl;
+                const signedParams = data.data.signedUrl.replace('?', '');
 
                 const mpdResponse = await fetch(masterUrl);
                 const mpdText = await mpdResponse.text();
@@ -41,16 +41,13 @@
 
                 player.getNetworkingEngine().registerRequestFilter((type, request) => {
                     if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT || type === shaka.net.NetworkingEngine.RequestType.MANIFEST) {
-                        if (!request.uri.includes('Signature')) {
-                            request.uri += (request.uri.includes('?') ? '&' : '?') + signedParams.substring(1);
-                        }
+                        request.uri += (request.uri.includes('?') ? '&' : '?') + signedParams;
                     }
                 });
 
                 await player.load(masterUrl);
             } catch (e) { 
-                console.error(e); 
-                alert("Buffering error: " + e.message);
+                console.error(e);
             }
         }
         init();
