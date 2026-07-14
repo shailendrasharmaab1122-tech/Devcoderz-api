@@ -3,13 +3,13 @@ const axios = require('axios');
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     
-    // Frontend se poora URL combine hoke aayega ya query params se
-    // Yahan hum target URL construct kar rahe hain
+    // req.url mein /api/pw-proxy/aHR0cHM.../master.mpd?Signature=... milega
+    // Hume ise rangexcoder-backend se jodhna hai
     const targetBase = "https://rangexcoder-backend.onrender.com";
-    const fullPath = req.url; // Isme path aur signature dono honge
-    
+    const targetUrl = targetBase + req.url;
+
     try {
-        const response = await axios.get(targetBase + fullPath, {
+        const response = await axios.get(targetUrl, {
             responseType: 'arraybuffer',
             headers: {
                 'Referer': 'https://brainboxinstitute.in/',
