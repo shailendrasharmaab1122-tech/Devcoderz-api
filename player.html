@@ -30,7 +30,7 @@
                 const data = await response.json();
                 
                 window.signedParams = data.data.signedUrl.substring(1);
-                const masterUrl = "https://rangexcoder-backend.onrender.com" + data.data.url + data.data.signedUrl;
+                const masterUrl = "https://devcoderz-api.vercel.app" + data.data.url + data.data.signedUrl;
                 
                 const mpdResponse = await fetch(masterUrl);
                 const mpdText = await mpdResponse.text();
