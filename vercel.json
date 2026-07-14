@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/pw-proxy/:path*", "destination": "/api/proxy.js" }
+    {
+      "source": "/api/pw-proxy/:path*",
+      "destination": "/api/proxy.js"
+    }
   ]
 }
