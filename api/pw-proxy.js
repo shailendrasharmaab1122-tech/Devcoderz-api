@@ -3,18 +3,26 @@ const axios = require('axios');
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Path mein se "aHR0..." wala part nikaalein
+    // URL path ko nikaalein
     let fullPath = req.url.split('/api/pw-proxy/')[1];
     if (!fullPath) return res.status(400).json({ error: "Path missing" });
 
-    // Isme query params (Signature) bhi ho sakte hain
-    const [encodedBase, queryString] = fullPath.split('?');
-
     try {
-        // Base64 decode karein
-        const targetUrl = Buffer.from(encodedBase, 'base64').toString('utf-8') + (queryString ? '?' + queryString : '');
+        // 1. Base64 aur Query params ko alag karein
+        // URL format: BASE64_PART?Signature=...
+        const parts = fullPath.split('?');
+        const encodedBase = parts[0];
+        const queryString = parts.slice(1).join('?'); // Baaki ke saare params
 
-        // Yahan 'targetBase' ki zaroorat nahi hai, kyunki targetUrl mein poora link hai
+        // 2. Base64 decode karein
+        let targetUrl = Buffer.from(encodedBase, 'base64').toString('utf-8');
+        
+        // 3. Agar query params hain, toh unhe wapas jodein
+        if (queryString) {
+            targetUrl += '?' + queryString;
+        }
+
+        // 4. Request bhejein
         const response = await axios.get(targetUrl, {
             responseType: 'arraybuffer',
             headers: {
@@ -25,6 +33,8 @@ module.exports = async (req, res) => {
         res.setHeader('Content-Type', response.headers['content-type']);
         res.send(Buffer.from(response.data));
     } catch (error) {
+        // Error ko console mein log karein taaki pata chale ki exact link kya ban raha hai
+        console.error("Target URL Error:", error.message);
         res.status(500).json({ error: error.message });
     }
 };
