@@ -24,8 +24,7 @@
                 const data = await response.json();
                 
                 const masterUrl = "https://rangexcoder-backend.onrender.com" + data.data.url + data.data.signedUrl;
-                const signedParams = data.data.signedUrl.replace('?', '');
-
+                
                 const mpdResponse = await fetch(masterUrl);
                 const mpdText = await mpdResponse.text();
                 const kidMatch = mpdText.match(/default_KID="([^"]+)"/i);
@@ -40,6 +39,7 @@
                 });
 
                 player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                    const signedParams = data.data.signedUrl.substring(1);
                     if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT || type === shaka.net.NetworkingEngine.RequestType.MANIFEST) {
                         request.uri += (request.uri.includes('?') ? '&' : '?') + signedParams;
                     }
