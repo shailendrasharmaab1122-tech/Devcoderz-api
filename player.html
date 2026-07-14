@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dynamic Rangex Player</title>
+    <title>Fixed Player</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.0/shaka-player.compiled.js"></script>
     <style>
         body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
@@ -14,30 +14,23 @@
     <script>
         const video = document.getElementById('video');
         const player = new shaka.Player(video);
-        
-        // URL se parameters extract karo
         const urlParams = new URLSearchParams(window.location.search);
-        const bId = urlParams.get('batchId');
-        const sId = urlParams.get('subjectId');
-        const cId = urlParams.get('childId');
-        const vId = urlParams.get('videoId');
-
+        
         async function init() {
             try {
-                // Dynamic API Call
-                const url = `https://rangexcoder-backend.onrender.com/api/get-video-url?batchId=${bId}&subjectId=${sId}&childId=${cId}&videoId=${vId}&accessToken=&refreshToken=`;
-                const response = await fetch(url);
+                const bId = urlParams.get('batchId'), sId = urlParams.get('subjectId'), cId = urlParams.get('childId'), vId = urlParams.get('videoId');
+                
+                const response = await fetch(`https://rangexcoder-backend.onrender.com/api/get-video-url?batchId=${bId}&subjectId=${sId}&childId=${cId}&videoId=${vId}&accessToken=&refreshToken=`);
                 const data = await response.json();
                 
                 const masterUrl = "https://rangexcoder-backend.onrender.com" + data.data.url + data.data.signedUrl;
+                const signedParams = data.data.signedUrl;
 
-                // Manifest se KID nikalo
                 const mpdResponse = await fetch(masterUrl);
                 const mpdText = await mpdResponse.text();
                 const kidMatch = mpdText.match(/default_KID="([^"]+)"/i);
                 const kid = kidMatch ? kidMatch[1].replace(/-/g, "").toLowerCase() : null;
 
-                // Key fetch karo
                 const keyResponse = await fetch(`https://rangexcoder-backend.onrender.com/api/get-otp?kid=${kid}&accessToken=&refreshToken=`);
                 const keyData = await keyResponse.json();
                 const key = keyData.clearKeys[kid];
@@ -46,25 +39,21 @@
                     drm: { clearKeys: { [kid]: key } }
                 });
 
-                // Chunks ke liye parameters attach karo
                 player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                    if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT) {
-                        request.uri += data.data.signedUrl;
+                    if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT || type === shaka.net.NetworkingEngine.RequestType.MANIFEST) {
+                        if (!request.uri.includes('Signature')) {
+                            request.uri += (request.uri.includes('?') ? '&' : '?') + signedParams.substring(1);
+                        }
                     }
                 });
 
                 await player.load(masterUrl);
-            } catch (e) {
-                console.error("Player Load Error:", e);
-                alert("Video load karne mein error aaya!");
+            } catch (e) { 
+                console.error(e); 
+                alert("Buffering error: " + e.message);
             }
         }
-
-        if (vId) {
-            init();
-        } else {
-            alert("Missing Video ID in URL!");
-        }
+        init();
     </script>
 </body>
 </html>
