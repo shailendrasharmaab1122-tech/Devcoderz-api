@@ -15,7 +15,13 @@
         const video = document.getElementById('video');
         const player = new shaka.Player(video);
         const urlParams = new URLSearchParams(window.location.search);
-        
+
+        player.getNetworkingEngine().registerRequestFilter((type, request) => {
+            if (window.signedParams && (type === shaka.net.NetworkingEngine.RequestType.SEGMENT || type === shaka.net.NetworkingEngine.RequestType.MANIFEST)) {
+                request.uris = request.uris.map(uri => uri + (uri.includes('?') ? '&' : '?') + window.signedParams);
+            }
+        });
+
         async function init() {
             try {
                 const bId = urlParams.get('batchId'), sId = urlParams.get('subjectId'), cId = urlParams.get('childId'), vId = urlParams.get('videoId');
@@ -23,6 +29,7 @@
                 const response = await fetch(`https://rangexcoder-backend.onrender.com/api/get-video-url?batchId=${bId}&subjectId=${sId}&childId=${cId}&videoId=${vId}&accessToken=&refreshToken=`);
                 const data = await response.json();
                 
+                window.signedParams = data.data.signedUrl.substring(1);
                 const masterUrl = "https://rangexcoder-backend.onrender.com" + data.data.url + data.data.signedUrl;
                 
                 const mpdResponse = await fetch(masterUrl);
@@ -36,13 +43,6 @@
 
                 player.configure({
                     drm: { clearKeys: { [kid]: key } }
-                });
-
-                player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                    const signedParams = data.data.signedUrl.substring(1);
-                    if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT || type === shaka.net.NetworkingEngine.RequestType.MANIFEST) {
-                        request.uri += (request.uri.includes('?') ? '&' : '?') + signedParams;
-                    }
                 });
 
                 await player.load(masterUrl);
