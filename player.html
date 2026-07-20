@@ -1,23 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum-Encrypted Player Engine</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.ui.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/controls.min.css">
-    <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; }
-        #video-container { width: 100%; height: 100%; }
-        video { width: 100%; height: 100%; }
-    </style>
 </head>
 <body>
-    <div id="video-container">
-        <video id="video" autoplay controls></video>
-    </div>
+    <video id="video" autoplay controls style="width:100%;"></video>
     <script>
         const API_BASE = "https://devcoderz-api.vercel.app";
+        const PROXY_URL = "https://rangexcoder-backend.onrender.com/apiserver/api/pi/play?url=";
 
         async function initPlayer() {
             const params = new URLSearchParams(window.location.search);
@@ -28,9 +19,9 @@
             try {
                 const urlRes = await fetch(`${API_BASE}/api/video-url?batchId=${params.get('batchId')}&subjectId=${params.get('subjectId')}&childId=${params.get('childId')}&videoId=${params.get('videoId')}`);
                 const urlData = await urlRes.json();
-                const manifestUrl = urlData.data.url + urlData.data.signedUrl;
+                const manifest = urlData.data.url + urlData.data.signedUrl;
 
-                const kidRes = await fetch(`${API_BASE}/api/key?mpdUrl=${encodeURIComponent(manifestUrl)}`);
+                const kidRes = await fetch(`${API_BASE}/api/key?mpdUrl=${encodeURIComponent(manifest)}`);
                 const kidData = await kidRes.json();
 
                 const keyRes = await fetch(`${API_BASE}/api/get-otp?kid=${kidData.kid}`);
@@ -41,12 +32,21 @@
                         clearKeys: {
                             [keyData.keyid]: keyData.key
                         }
+                    },
+                    streaming: {
+                        bufferingGoal: 60,
+                        rebufferingGoal: 10,
+                        bufferBehind: 30,
+                        retryParameters: {
+                            maxAttempts: 5,
+                            baseDelay: 1000
+                        }
                     }
                 });
 
-                await player.load(manifestUrl);
-            } catch (error) {
-                console.error("Engine Fault:", error);
+                await player.load(manifest);
+            } catch (e) {
+                console.error("Engine Fault:", e);
             }
         }
 
