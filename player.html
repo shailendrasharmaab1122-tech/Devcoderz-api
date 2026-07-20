@@ -5,7 +5,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/controls.min.css">
 </head>
 <body>
-    <video id="video" autoplay controls style="width:100%;"></video>
+    <video id="video" autoplay controls style="width:100%"></video>
     <script>
         const API_BASE = "https://devcoderz-api.vercel.app";
         const PROXY_URL = "https://rangexcoder-backend.onrender.com/apiserver/api/pi/play?url=";
@@ -14,8 +14,7 @@
             const params = new URLSearchParams(window.location.search);
             const video = document.getElementById('video');
             const player = new shaka.Player(video);
-            const ui = new shaka.ui.Overlay(player, video.parentElement, video);
-
+            
             try {
                 const urlRes = await fetch(`${API_BASE}/api/video-url?batchId=${params.get('batchId')}&subjectId=${params.get('subjectId')}&childId=${params.get('childId')}&videoId=${params.get('videoId')}`);
                 const urlData = await urlRes.json();
@@ -29,27 +28,19 @@
 
                 player.configure({
                     drm: {
-                        clearKeys: {
-                            [keyData.keyid]: keyData.key
-                        }
-                    },
-                    streaming: {
-                        bufferingGoal: 60,
-                        rebufferingGoal: 10,
-                        bufferBehind: 30,
-                        retryParameters: {
-                            maxAttempts: 5,
-                            baseDelay: 1000
-                        }
+                        clearKeys: { [keyData.keyid]: keyData.key }
                     }
                 });
 
-                await player.load(manifest);
+                // Yahan manifest ko Proxy ke through load kar rahe hain
+                const proxiedManifest = PROXY_URL + encodeURIComponent(manifest);
+                await player.load(proxiedManifest);
+                
             } catch (e) {
-                console.error("Engine Fault:", e);
+                console.error("Player Exception:", e);
+                document.body.innerHTML = "Error: " + e.message;
             }
         }
-
         document.addEventListener('shaka-ui-loaded', initPlayer);
     </script>
 </body>
