@@ -32,7 +32,10 @@
                 const urlData = await urlRes.json();
                 const manifestUrl = urlData.data.url + urlData.data.signedUrl;
 
-                const keyRes = await fetch(`https://devcoderz-api.vercel.app/api/key?mpdUrl=${encodeURIComponent(manifestUrl)}`);
+                const kidRes = await fetch(`https://devcoderz-api.vercel.app/api/key?mpdUrl=${encodeURIComponent(manifestUrl)}`);
+                const kidData = await kidRes.json();
+
+                const keyRes = await fetch(`https://devcoderz-api.vercel.app/api/get-otp?kid=${kidData.kid}`);
                 const keyData = await keyRes.json();
 
                 player.configure({
