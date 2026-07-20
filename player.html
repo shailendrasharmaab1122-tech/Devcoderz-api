@@ -1,28 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Player Debugger</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.ui.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/controls.min.css">
 </head>
 <body>
-    <div id="error-log" style="color:red; font-family: monospace;"></div>
     <video id="video" width="100%" controls autoplay></video>
     <script>
-        // Log dikhane ke liye
-        window.onerror = function(msg, url, line) { document.getElementById('error-log').innerHTML += "Error: " + msg + "<br>"; };
-        console.log("Script Started");
-
+        // Hex String ko Uint8Array mein convert karne wala function
         function hexToBytes(hex) {
             let bytes = new Uint8Array(hex.length / 2);
-            for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+            }
             return bytes;
-        }
-
-        function bytesToBase64(bytes) {
-            let binary = '';
-            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
         async function initPlayer() {
@@ -30,38 +21,36 @@
             const player = new shaka.Player(video);
             
             try {
-                // 1. Get URL
+                // 1. URL Fetch
                 const urlRes = await fetch("https://devcoderz-api.vercel.app/api/video-url?batchId=698ad3519549b300a5e1cc6a&subjectId=69b5698ee506a608ee297ed1&childId=69ff18a7ef0d5bb3113d55b1&videoId=6a01eda5a15fce38297fb573");
                 const urlData = await urlRes.json();
                 const manifestUrl = urlData.data.url + urlData.data.signedUrl;
-                console.log("URL Got");
 
-                // 2. Get KID
+                // 2. KID Fetch
                 const kidRes = await fetch(`https://devcoderz-api.vercel.app/api/key?mpdUrl=${encodeURIComponent(manifestUrl)}`);
                 const kidData = await kidRes.json();
-                console.log("KID Got:", kidData.kid);
 
-                // 3. Get Keys
+                // 3. Keys Fetch
                 const keyRes = await fetch(`https://devcoderz-api.vercel.app/api/get-otp?kid=${kidData.kid}`);
                 const keyData = await keyRes.json();
-                console.log("Keys Got");
 
-                // 4. Configure DRM - Important: Shaka ClearKey expects base64
-                const kidB64 = bytesToBase64(hexToBytes(keyData.keyid));
-                const keyB64 = bytesToBase64(hexToBytes(keyData.key));
-                
+                // Convert Hex to Base64 (Standard for ClearKey)
+                const kidBase64 = btoa(String.fromCharCode(...hexToBytes(keyData.keyid))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                const keyBase64 = btoa(String.fromCharCode(...hexToBytes(keyData.key))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
                 player.configure({
                     drm: {
                         clearKeys: {
-                            [kidB64]: keyB64
+                            [kidBase64]: keyBase64
                         }
                     }
                 });
 
                 await player.load(manifestUrl);
-                console.log("Load Complete");
+                console.log("Video Loaded Successfully");
             } catch (e) {
-                document.getElementById('error-log').innerHTML = "Major Error: " + e.message;
+                console.error("Player Error:", e);
+                alert("Error: " + e.message);
             }
         }
         initPlayer();
