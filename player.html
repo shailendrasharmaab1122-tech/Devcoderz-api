@@ -17,6 +17,10 @@
         <video id="video" autoplay controls></video>
     </div>
     <script>
+        function hexToBase64(hex) {
+            return btoa(hex.match(/\w{2}/g).map(function(a) { return String.fromCharCode(parseInt(a, 16)); }).join(""));
+        }
+
         const params = new URLSearchParams(window.location.search);
         const bId = params.get('batchId');
         const sId = params.get('subjectId');
@@ -38,17 +42,20 @@
                 const keyRes = await fetch(`https://devcoderz-api.vercel.app/api/get-otp?kid=${kidData.kid}`);
                 const keyData = await keyRes.json();
 
+                const base64KeyId = hexToBase64(keyData.keyid);
+                const base64Key = hexToBase64(keyData.key);
+
                 player.configure({
                     drm: {
                         clearKeys: {
-                            [keyData.keyid]: keyData.key
+                            [base64KeyId]: base64Key
                         }
                     }
                 });
 
                 await player.load(manifestUrl);
             } catch (e) {
-                console.error("Error loading player:", e);
+                console.error("Error:", e);
             }
         }
         initPlayer();
