@@ -1,63 +1,67 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Shaka Debugger</title>
+    <title>Player Debugger</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.ui.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/controls.min.css">
 </head>
 <body>
-    <video id="video" width="640" controls autoplay></video>
+    <div id="error-log" style="color:red; font-family: monospace;"></div>
+    <video id="video" width="100%" controls autoplay></video>
     <script>
+        // Log dikhane ke liye
+        window.onerror = function(msg, url, line) { document.getElementById('error-log').innerHTML += "Error: " + msg + "<br>"; };
+        console.log("Script Started");
+
         function hexToBytes(hex) {
             let bytes = new Uint8Array(hex.length / 2);
             for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
             return bytes;
         }
 
-        function bytesToBase64Url(bytes) {
-            return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        function bytesToBase64(bytes) {
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
         async function initPlayer() {
             const video = document.getElementById('video');
             const player = new shaka.Player(video);
-
+            
             try {
-                console.log("Step 1: Fetching Video URL...");
+                // 1. Get URL
                 const urlRes = await fetch("https://devcoderz-api.vercel.app/api/video-url?batchId=698ad3519549b300a5e1cc6a&subjectId=69b5698ee506a608ee297ed1&childId=69ff18a7ef0d5bb3113d55b1&videoId=6a01eda5a15fce38297fb573");
                 const urlData = await urlRes.json();
                 const manifestUrl = urlData.data.url + urlData.data.signedUrl;
-                console.log("Manifest URL received:", manifestUrl);
+                console.log("URL Got");
 
-                console.log("Step 2: Fetching KID...");
+                // 2. Get KID
                 const kidRes = await fetch(`https://devcoderz-api.vercel.app/api/key?mpdUrl=${encodeURIComponent(manifestUrl)}`);
                 const kidData = await kidRes.json();
-                console.log("KID Data:", kidData);
+                console.log("KID Got:", kidData.kid);
 
-                console.log("Step 3: Fetching Keys...");
+                // 3. Get Keys
                 const keyRes = await fetch(`https://devcoderz-api.vercel.app/api/get-otp?kid=${kidData.kid}`);
                 const keyData = await keyRes.json();
-                console.log("Keys received:", keyData);
+                console.log("Keys Got");
 
-                // Convert Hex to Base64URL
-                const kidBase64 = bytesToBase64Url(hexToBytes(keyData.keyid));
-                const keyBase64 = bytesToBase64Url(hexToBytes(keyData.key));
-                console.log("Encoded KID:", kidBase64, "Encoded Key:", keyBase64);
-
+                // 4. Configure DRM - Important: Shaka ClearKey expects base64
+                const kidB64 = bytesToBase64(hexToBytes(keyData.keyid));
+                const keyB64 = bytesToBase64(hexToBytes(keyData.key));
+                
                 player.configure({
                     drm: {
                         clearKeys: {
-                            [kidBase64]: keyBase64
+                            [kidB64]: keyB64
                         }
                     }
                 });
 
-                console.log("Step 4: Loading stream...");
                 await player.load(manifestUrl);
-                console.log("Stream loaded successfully!");
+                console.log("Load Complete");
             } catch (e) {
-                console.error("Critical Failure:", e);
+                document.getElementById('error-log').innerHTML = "Major Error: " + e.message;
             }
         }
         initPlayer();
