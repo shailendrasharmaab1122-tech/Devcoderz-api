@@ -2,60 +2,62 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shaka Player</title>
+    <title>Shaka Debugger</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.ui.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/controls.min.css">
-    <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
-        #video-container { width: 100%; height: 100%; }
-        video { width: 100%; height: 100%; }
-    </style>
 </head>
 <body>
-    <div id="video-container">
-        <video id="video" autoplay controls></video>
-    </div>
+    <video id="video" width="640" controls autoplay></video>
     <script>
-        function hexToBase64(hex) {
-            return btoa(hex.match(/\w{2}/g).map(function(a) { return String.fromCharCode(parseInt(a, 16)); }).join(""));
+        function hexToBytes(hex) {
+            let bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+            return bytes;
         }
 
-        const params = new URLSearchParams(window.location.search);
-        const bId = params.get('batchId');
-        const sId = params.get('subjectId');
-        const cId = params.get('childId');
-        const vId = params.get('videoId');
+        function bytesToBase64Url(bytes) {
+            return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
 
         async function initPlayer() {
             const video = document.getElementById('video');
             const player = new shaka.Player(video);
 
             try {
-                const urlRes = await fetch(`https://devcoderz-api.vercel.app/api/video-url?batchId=${bId}&subjectId=${sId}&childId=${cId}&videoId=${vId}`);
+                console.log("Step 1: Fetching Video URL...");
+                const urlRes = await fetch("https://devcoderz-api.vercel.app/api/video-url?batchId=698ad3519549b300a5e1cc6a&subjectId=69b5698ee506a608ee297ed1&childId=69ff18a7ef0d5bb3113d55b1&videoId=6a01eda5a15fce38297fb573");
                 const urlData = await urlRes.json();
                 const manifestUrl = urlData.data.url + urlData.data.signedUrl;
+                console.log("Manifest URL received:", manifestUrl);
 
+                console.log("Step 2: Fetching KID...");
                 const kidRes = await fetch(`https://devcoderz-api.vercel.app/api/key?mpdUrl=${encodeURIComponent(manifestUrl)}`);
                 const kidData = await kidRes.json();
+                console.log("KID Data:", kidData);
 
+                console.log("Step 3: Fetching Keys...");
                 const keyRes = await fetch(`https://devcoderz-api.vercel.app/api/get-otp?kid=${kidData.kid}`);
                 const keyData = await keyRes.json();
+                console.log("Keys received:", keyData);
 
-                const base64KeyId = hexToBase64(keyData.keyid);
-                const base64Key = hexToBase64(keyData.key);
+                // Convert Hex to Base64URL
+                const kidBase64 = bytesToBase64Url(hexToBytes(keyData.keyid));
+                const keyBase64 = bytesToBase64Url(hexToBytes(keyData.key));
+                console.log("Encoded KID:", kidBase64, "Encoded Key:", keyBase64);
 
                 player.configure({
                     drm: {
                         clearKeys: {
-                            [base64KeyId]: base64Key
+                            [kidBase64]: keyBase64
                         }
                     }
                 });
 
+                console.log("Step 4: Loading stream...");
                 await player.load(manifestUrl);
+                console.log("Stream loaded successfully!");
             } catch (e) {
-                console.error("Error:", e);
+                console.error("Critical Failure:", e);
             }
         }
         initPlayer();
