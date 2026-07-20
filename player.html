@@ -1,11 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum-Encrypted Player Engine</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.ui.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/controls.min.css">
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; }
+        #video-container { width: 100%; height: 100%; }
+        video { width: 100%; height: 100%; }
+    </style>
 </head>
 <body>
-    <video id="video" width="100%" controls autoplay></video>
+    <div id="video-container">
+        <video id="video" autoplay controls></video>
+    </div>
     <script>
         const API_BASE = "https://devcoderz-api.vercel.app";
 
@@ -13,22 +23,19 @@
             const params = new URLSearchParams(window.location.search);
             const video = document.getElementById('video');
             const player = new shaka.Player(video);
-            
+            const ui = new shaka.ui.Overlay(player, video.parentElement, video);
+
             try {
-                // 1. Fetch URL
                 const urlRes = await fetch(`${API_BASE}/api/video-url?batchId=${params.get('batchId')}&subjectId=${params.get('subjectId')}&childId=${params.get('childId')}&videoId=${params.get('videoId')}`);
                 const urlData = await urlRes.json();
                 const manifestUrl = urlData.data.url + urlData.data.signedUrl;
 
-                // 2. Fetch KID
                 const kidRes = await fetch(`${API_BASE}/api/key?mpdUrl=${encodeURIComponent(manifestUrl)}`);
                 const kidData = await kidRes.json();
 
-                // 3. Fetch Keys
                 const keyRes = await fetch(`${API_BASE}/api/get-otp?kid=${kidData.kid}`);
                 const keyData = await keyRes.json();
 
-                // 4. Configure DRM - Using Hex format directly
                 player.configure({
                     drm: {
                         clearKeys: {
@@ -37,19 +44,13 @@
                     }
                 });
 
-                // 5. Load
                 await player.load(manifestUrl);
-                console.log("Playback started!");
-            } catch (e) {
-                console.error("DEBUG ERROR:", e);
-                // Yeh error window pe dikha dega
-                document.body.innerHTML += `<div style="color:red">Error: ${e.message}</div>`;
+            } catch (error) {
+                console.error("Engine Fault:", error);
             }
         }
-        
-        // Error events catch karne ke liye
+
         document.addEventListener('shaka-ui-loaded', initPlayer);
-        initPlayer();
     </script>
 </body>
 </html>
