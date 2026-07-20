@@ -4,7 +4,7 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     try {
         const { kid, accessToken, refreshToken } = req.query;
-        const response = await axios.get('https://rangexcoder-backend.onrender.com/api/get-otp', {
+        const response = await axios.get('https://rangexcoder-backend.onrender.com/apiserver/api/pw/otp', {
             params: { kid, accessToken, refreshToken }
         });
         res.status(200).json(response.data);
