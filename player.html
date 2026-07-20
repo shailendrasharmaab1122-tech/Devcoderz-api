@@ -14,7 +14,12 @@
             const params = new URLSearchParams(window.location.search);
             const video = document.getElementById('video');
             const player = new shaka.Player(video);
-            
+
+            const networkingEngine = player.getNetworkingEngine();
+            networkingEngine.registerRequestFilter((type, request) => {
+                request.allowCrossSiteCredentials = true;
+            });
+
             try {
                 const urlRes = await fetch(`${API_BASE}/api/video-url?batchId=${params.get('batchId')}&subjectId=${params.get('subjectId')}&childId=${params.get('childId')}&videoId=${params.get('videoId')}`);
                 const urlData = await urlRes.json();
@@ -29,16 +34,16 @@
                 player.configure({
                     drm: {
                         clearKeys: { [keyData.keyid]: keyData.key }
+                    },
+                    streaming: {
+                        ignoreTextStreamFailures: true,
+                        alwaysStreamText: false
                     }
                 });
 
-                // Yahan manifest ko Proxy ke through load kar rahe hain
-                const proxiedManifest = PROXY_URL + encodeURIComponent(manifest);
-                await player.load(proxiedManifest);
-                
+                await player.load(PROXY_URL + encodeURIComponent(manifest));
             } catch (e) {
-                console.error("Player Exception:", e);
-                document.body.innerHTML = "Error: " + e.message;
+                console.error("Critical:", e);
             }
         }
         document.addEventListener('shaka-ui-loaded', initPlayer);
