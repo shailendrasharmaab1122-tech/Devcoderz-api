@@ -22,7 +22,6 @@
         const sId = params.get('subjectId');
         const cId = params.get('childId');
         const vId = params.get('videoId');
-        const kid = params.get('kid');
 
         async function initPlayer() {
             const video = document.getElementById('video');
@@ -33,7 +32,7 @@
                 const urlData = await urlRes.json();
                 const manifestUrl = urlData.data.url + urlData.data.signedUrl;
 
-                const keyRes = await fetch(`https://devcoderz-api.vercel.app/api/get-otp?kid=${kid}`);
+                const keyRes = await fetch(`https://devcoderz-api.vercel.app/api/key?mpdUrl=${encodeURIComponent(manifestUrl)}`);
                 const keyData = await keyRes.json();
 
                 player.configure({
