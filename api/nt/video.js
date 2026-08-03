@@ -1,53 +1,33 @@
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
+export default async function handler(req, res) {
+  const { fetch_media, course_id } = req.query;
 
-async function handleRequest(request) {
-  const url = new URL(request.url);
-  
-  // Query parameters ko extract karo jo client se aayenge (e.g., ?fetch_media=...&course_id=...)
-  const fetchMedia = url.searchParams.get('fetch_media');
-  const courseId = url.searchParams.get('course_id');
-
-  // Agar parameters nahi diye toh default ya error return kar sakte ho
-  if (!fetchMedia || !courseId) {
-    return new Response(JSON.stringify({ error: "Missing fetch_media or course_id parameters" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-    });
+  if (!fetch_media || !course_id) {
+    return res.status(400).json({ error: "Missing fetch_media or course_id parameters" });
   }
 
-  // Target URL ko dynamic bana diya
-  const targetUrl = `https://studybeepro.site/api/api?fetch_media=${fetchMedia}&course_id=${courseId}`;
-  
-  const newHeaders = new Headers(request.headers);
-  newHeaders.set("Host", "studybeepro.site");
-  newHeaders.set("Referer", "https://studybeepro.site/");
-  newHeaders.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+  const targetUrl = `https://studybeepro.site/api/api?fetch_media=${fetch_media}&course_id=${course_id}`;
 
   try {
     const response = await fetch(targetUrl, {
-      method: request.method,
-      headers: newHeaders,
-      body: request.method !== "GET" && request.method !== "HEAD" ? request.body : null,
+      method: req.method,
+      headers: {
+        "Host": "studybeepro.site",
+        "Referer": "https://studybeepro.site/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      },
       redirect: "follow"
     });
 
-    const modifiedResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers
-    });
+    const data = await response.text();
 
-    modifiedResponse.headers.set("Access-Control-Allow-Origin", "*");
-    modifiedResponse.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    modifiedResponse.headers.set("Access-Control-Allow-Headers", "*");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Content-Type", response.headers.get("content-type") || "application/json");
 
-    return modifiedResponse;
+    return res.status(response.status).send(data);
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Proxy failed", details: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-    });
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    return res.status(500).json({ error: "Proxy failed", details: err.message });
   }
 }
