@@ -4,7 +4,7 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
 
     try {
-        const response = await fetch("https://rarestudy.github.io/rarestudy/batches.json");
+        const response = await fetch("https://rarestudy.github.io/rarestudy/batches.json?v=1785942018302");
         if (!response.ok) throw new Error("Core database array unreachable.");
         const data = await response.json();
         return res.status(200).json(data);
